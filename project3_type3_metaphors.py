@@ -22,7 +22,7 @@ concrete_noun_categories = [
     "artifact",
     "body",
     "food",
-    "location"
+    "location",
     "object",
     "person",
     "plant"
@@ -87,6 +87,9 @@ def is_metaphor(sentence: str):
             for k, v in collocations.items():
                 # Need to filter category here
                 for synset in get_synsets(k[0]):
+                    if not synset:
+                        # wn does not know this noun
+                        continue
                     if is_concrete_noun(synset):
                         # Store all concrete nouns in a dict
                         concretes[synset] = v
