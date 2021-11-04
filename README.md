@@ -5,6 +5,7 @@
 
 # Additional requirements
 * import nltk
+* nltk.download('brown')
 * nltk.download('wordnet')
 * nltk.download('reuters')
 
