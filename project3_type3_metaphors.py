@@ -128,9 +128,16 @@ def is_metaphor(noun, adjective):
             )
         ]
     S1 = sorted_concretes[3:]
+<<<<<<< Updated upstream
     if S1:
         metaphor = True # assume a metaphor unless compatibility found
         for adjective, lemmas in senses.items():
+=======
+    if not S1:
+        print("No concrete nouns")
+    else:
+      for adjective, lemmas in senses.items():
+>>>>>>> Stashed changes
             if lemmas == "UNKNOWN" or lemmas == "NO METAPHOR":
                 continue
             for lemma in lemmas:
