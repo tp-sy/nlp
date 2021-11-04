@@ -4,10 +4,10 @@ from nltk.corpus import brown
 from nltk.collocations import BigramCollocationFinder
 from nltk.metrics import BigramAssocMeasures
 from nltk import pos_tag
-import sys
+ 
+EXAMPLE_1 = "hot as sun"
+EXAMPLE_2 = "hot as city"
 
-EXAMPLE_1 = "Yellow potato is scary"
-EXAMPLE_2 = "Whatever floats your fancy boat"
 
 # nouns
 # NN NN$ NNS NNS$ NP NP$ NPS NPS$ NR NRS
@@ -57,6 +57,9 @@ def is_concrete_noun(synset: List):
     return False
 
 def get_collocation(word, threshold = 3):
+    """
+    Calculate collocation for the word
+    """
     collocs = {}
     for w in tagged:
         if not w[1] in nouns:
@@ -66,33 +69,55 @@ def get_collocation(word, threshold = 3):
             collocs[w] = AB
     return collocs
 
-def is_metaphor(sentence: str):
+def parse_sentence(sentence: str, expected: bool):
+    """
+    Parses a single sentences and finds metaphors
+    """
     tags = tag_sentence(sentence)
-    senses = {}
-    noun_brown = {}
-    concretes = {}
+    adjs = []
+    ns = []
+    metaphors = {}
     for tag in tags:
-        if tag[1] in adj:
-            # Get all the different meanings of the adjective
-            lemmas = wn.lemmas(tag[0])
-            if not lemmas:
-                senses[tag[0]] = "UNKNOWN"
-            elif len(senses) == 1:
-                senses[tag[0]] = "NO METAPHOR"
-            else:
-                senses[tag[0]] = lemmas
+        if tag[1] in adj or tag[1] in adv:
+            adjs.append(tag[0])
         if tag[1] in nouns:
-            # Get the category of the noun
-            collocations = get_collocation(tag[0])
-            for k, v in collocations.items():
-                # Need to filter category here
-                for synset in get_synsets(k[0]):
-                    if not synset:
-                        # wn does not know this noun
-                        continue
-                    if is_concrete_noun(synset):
-                        # Store all concrete nouns in a dict
-                        concretes[synset] = v
+            ns.append(tag[0])
+
+    if ns and adjs:
+        for a in adjs:
+            for n in ns:
+                metaphors[f"{a}:{n}"] = {
+                    "result": is_metaphor(n, a),
+                    "expected": expected
+                }
+    return metaphors
+
+def is_metaphor(noun, adjective):
+    """
+    Check if a noun-adjective pair is a metaphor
+    """
+    senses = {}
+    concretes = {}
+    # Get all the different meanings of the adjective
+    lemmas = wn.lemmas(adjective)
+    if not lemmas:
+        senses[adjective] = "UNKNOWN"
+    elif len(senses) == 1:
+        senses[adjective] = "NO METAPHOR"
+    else:
+        senses[adjective] = lemmas
+
+    # Get the category of the noun
+    collocations = get_collocation(noun)
+    for k, v in collocations.items():
+        # Need to filter category here
+        for synset in get_synsets(k[0]):
+            if not synset:
+                # wn does not know this noun
+                continue
+            if is_concrete_noun(synset):
+                # Store all concrete nouns in a dict
+                concretes[synset] = v
 
     # sort dict by value and take the last 3
     sorted_concretes = [
@@ -101,21 +126,56 @@ def is_metaphor(sentence: str):
             )
         ]
     S1 = sorted_concretes[3:]
-    if not S1:
-        print("No concrete nouns")
-    else:
+    if S1:
+        metaphor = True # assume a metaphor unless compatibility found
         for adjective, lemmas in senses.items():
             if lemmas == "UNKNOWN" or lemmas == "NO METAPHOR":
                 continue
             for lemma in lemmas:
-                metaphor = False
                 for synset in S1:
                     compatibility = synset.wup_similarity(lemma.synset())
                     if compatibility >= 0.3:
-                        print("Not a metaphor")
+                        metaphor = False
                         break
-                else:
-                    # No compatibility found, is a metaphor
-                    metaphor = True
-                    print(f"{sentence} has metaphor")
-                # compatibility found, not a metaphor
+        return metaphor
+    return False
+
+from multiprocessing import Pool
+import json
+
+def process_line(line):
+    """
+    Some preprocessing on the line before parsing the sentence
+    """
+    line = line.strip("\n")
+    if line.endswith("y"):
+        expected = True
+    else:
+        expected = False
+    line = line.rsplit(maxsplit=1)[0] # Split off the annotations
+    return parse_sentence(line, expected)
+
+with open("data/type1_metaphor_annotated.txt") as fd:
+    lines = list(fd.readlines())
+    #metaphors = []
+    #with Pool(processes=8) as pool: # Do in 8 processes
+    #    for line in lines:
+    #        res = pool.apply_async(process_line, args=(line,))
+    #        metaphors.append(res)
+
+    #metaphors_dict = {}
+    #for i, result in enumerate(metaphors):
+        # Get the result after everything has been processed to not block the thread
+    #    print(i)
+    #    for key, value in result.get().items():
+    #        if key in metaphors_dict:
+    #            print("Found colliding metaphors")
+    #        metaphors_dict[key] = value 
+    metaphors_dict = {}
+    for line in lines:
+        result = process_line(line)
+        if result:
+            metaphors_dict.update(result)
+
+    with open("type3_results.json", "w") as wfd:
+        json.dump(metaphors_dict, wfd)
