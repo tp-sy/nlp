@@ -152,6 +152,8 @@ def process_line(line):
     line = line.strip("\n")
     if line.endswith("y"):
         expected = True
+    elif line.endswith("s"):
+        return {}
     else:
         expected = False
     line, ann = line.rsplit(maxsplit=1) # Split off the annotations
@@ -165,7 +167,7 @@ def process_line(line):
     return {}
 
 
-with open("data/type1_metaphor_annotated.txt") as fd:
+with open("metaphor_annotated_corpus.txt") as fd:
     lines = list(fd.readlines())
     #metaphors = []
     #with Pool(processes=8) as pool: # Do in 8 processes
