@@ -69,7 +69,7 @@ def get_collocation(word, threshold = 3):
             collocs[w] = AB
     return collocs
 
-def parse_sentence(sentence: str, expected: bool):
+def parse_sentence(sentence: str, expected: bool, noun_pos: int):
     """
     Parses a single sentences and finds metaphors
     """
@@ -77,11 +77,14 @@ def parse_sentence(sentence: str, expected: bool):
     adjs = []
     ns = []
     metaphors = {}
-    for tag in tags:
+    for pos, tag in enumerate(tags):
         if tag[1] in adj or tag[1] in adv:
             adjs.append(tag[0])
         if tag[1] in nouns:
-            ns.append(tag[0])
+            if pos + 1 == noun_pos:
+                ns.append(tag[0])
+            else:
+                print("Wrong noun position, skipping")
 
     if ns and adjs:
         for a in adjs:
@@ -91,7 +94,6 @@ def parse_sentence(sentence: str, expected: bool):
                     "expected": expected
                 }
     return metaphors
-
 def is_metaphor(noun, adjective):
     """
     Check if a noun-adjective pair is a metaphor
@@ -152,8 +154,16 @@ def process_line(line):
         expected = True
     else:
         expected = False
-    line = line.rsplit(maxsplit=1)[0] # Split off the annotations
-    return parse_sentence(line, expected)
+    line, ann = line.rsplit(maxsplit=1) # Split off the annotations
+    if ann.startswith("@"):
+        try:
+            noun_pos = int(ann[1]) # get the position of the noun in the metaphor
+        except:
+            print("Failed to get noun pos")
+            return {}
+        return parse_sentence(line, expected, noun_pos)
+    return {}
+
 
 with open("data/type1_metaphor_annotated.txt") as fd:
     lines = list(fd.readlines())
